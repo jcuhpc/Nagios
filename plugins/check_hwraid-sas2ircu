@@ -1,0 +1,34 @@
+#!/usr/bin/perl
+chomp(@INFO = `/usr/local/lib/nagios/plugins/sas2ircu 0 DISPLAY`);
+($raid) = grep(/RAID level/,@INFO);
+($x,$raid) = split(/: RAID/,$raid);
+
+($size) = grep(/Size .in MB. /,@INFO);
+($x,$size) = split(/: /,$size);
+$size = int($size/1024)."GB";
+
+@INFO = grep(/State/,@INFO);
+($x,$dska) = split(/: /,$INFO[0]);
+($x,$dskb) = split(/: /,$INFO[1]);
+
+chomp(@INFO = `/usr/local/lib/nagios/plugins/sas2ircu 0 STATUS | grep "Volume s"`);
+($x,$stat) = split(/: /,$INFO[1]);
+
+if ("$stat" eq "Optimal")
+{
+  if ("$dska" == "Optimal (OPT)" && "$dskb" == "Optimal (OPT)")
+  {
+    print "OK:  $size GB of RAID-$raid storage is $stat.\n";
+    exit(0);
+  }
+  else
+  {
+    print "WARNING:  $size GB of RAID-$raid storage is $stat (failure predicted)\n";
+    exit(1);
+  }
+}
+else
+{
+  print "CRITICAL:  $size GB of RAID-$raid storage is $stat.\n";
+  exit(2);
+}

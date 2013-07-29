@@ -1,0 +1,20 @@
+#!/bin/bash
+# SYNOPSIS:
+#       check_blcr
+#
+# NAIOGS PLUGIN DESCRIPTION
+#	Report status of BLCR
+#
+# Created:	2009/10/26  wayne.mallett@jcu.edu.au [1]
+# Changes:	2010/09/07  [1]  Modified to use vmstat output
+#
+
+SS=`/etc/init.d/blcr status`
+
+if   [ $? = 0 ] ; then
+  echo "OK - BLCR subsystem is active.";
+  exit 0
+else
+  echo "WARNING - BLCR subsystem is NOT active.";
+  exit 1
+fi

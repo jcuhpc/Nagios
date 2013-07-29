@@ -1,0 +1,43 @@
+#!/bin/bash
+CODE=0
+MSG0="OK"
+MSG1="$1 IS5000 array is optimal."
+MSG2="All VGs are on preferred controllers."
+
+PRFX=/sw/reports/IS5000-$1
+STAT=`awk '/Status/ {print $2}' $PRFX-vg?.rep | sort | uniq -c`
+
+if   [ "$1" = "Primary" ] ; then
+
+    OWN0=`awk '/owner/  {print $6}' $PRFX-vg0.rep`
+    OWN1=`awk '/owner/  {print $6}' $PRFX-vg1.rep`
+    OWN2=`awk '/owner/  {print $6}' $PRFX-vg2.rep`
+    OWN3=`awk '/owner/  {print $6}' $PRFX-vg3.rep`
+    OWN4=`awk '/owner/  {print $6}' $PRFX-vg4.rep`
+    OWN5=`awk '/owner/  {print $6}' $PRFX-vg5.rep`
+    if [ "$OWN0 $OWN1 $OWN2 $OWN3 $OWN4 $OWN5" != "A B A B A B" ] ; then
+	MSG2="Preferred controller mismatch!"
+        MSG0="WARNING"; CODE=1
+    fi
+    if [ "$STAT" != "      6 Optimal" ] ; then
+        MSG1="Primary IS5000 array is NOT optimal!"
+	MSG0="ERROR"; CODE=2
+    fi
+
+elif [ "$1" = "Scratch" ] ; then
+
+    OWN0=`awk '/owner/  {print $6}' $PRFX-vg0.rep`
+    OWN1=`awk '/owner/  {print $6}' $PRFX-vg1.rep`
+    if [ "$OWN0 $OWN1" != "A B" ] ; then
+	MSG2="Preferred controller mismatch!"
+	MSG0="WARNING"; CODE=1
+    fi
+    if [ "$STAT" != "      2 Optimal" ] ; then
+        MSG1="Scratch IS5000 array is NOT optimal!"
+	MSG0="ERROR"; CODE=2
+    fi
+
+fi
+
+echo "$MSG0 - $MSG1 $MSG2"
+exit $CODE

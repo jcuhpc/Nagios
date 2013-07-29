@@ -1,0 +1,37 @@
+#!/usr/bin/perl
+# Check status of an LSI hardware RAID device (with Battery Backup Unit).
+# This script requires the MegaCli64 software (from LSI).
+
+chomp(@info = `/opt/MegaRAID/MegaCli/MegaCli64 -CfgDsply  -a0`);
+($stat) = grep(/^State/,@info);     ($x,$stat) = split(/: /,$stat);
+($size) = grep(/^Size/,@info);      ($x,$size) = split(/: /,$size);
+($ndsk) = grep(/PDs/,@info);        ($x,$ndsk) = split(/: /,$ndsk);
+
+$errs = "";    $pred = "";
+@errs = grep(/^Media Error/,@info);
+@pred = grep(/^Predictive Failure/,@info);
+for ($i=0 ; $i<$ndsk ; $i++) {
+    ($x,$tmpa) = split(/: /,$pred[$i]);
+    ($x,$tmpb) = split(/: /,$errs[$i]);
+    $pred = "$pred $i"    if ($tmpa != 0);
+    $errs = "$errs $i"    if ($tmpb != 0);
+}
+
+chomp(@info = `/opt/MegaRAID/MegaCli/MegaCli64 -AdpBbuCmd -a0`);
+($b_chrg,$x) = grep(/^Absolute/,@info);
+($x,$b_chrg) = split(/: /,$b_chrg);
+$b_chrg =~ s/ \%//;
+
+# Create the informational part of nagios message (may be added to).
+$mesg = "$size of RAID-1 storage is $stat ($b_chrg\% battery charge).";
+$mesg = "$mesg  Errors on PDs:$errs."               if ("$errs" ne "");
+$mesg = "$mesg  Pedicted failure on PDs:$pred."     if ("$pred" ne "");
+
+$EXIT = 0;
+$EXIT = 2    if ("$stat" ne "Optimal");
+$EXIT = 1    if ("$errs" ne "" || "$pred" ne "" || $b_chrg <= 50);
+
+print "OK: $mesg\n"          if ($EXIT == 0);
+print "WARNING: $mesg\n"     if ($EXIT == 1);
+print "CRITICAL: $mesg\n"    if ($EXIT == 2);
+exit($EXIT);

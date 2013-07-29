@@ -1,0 +1,78 @@
+#!/usr/bin/perl
+
+
+sub  CollTime  {
+    my   (@time , $time);
+    chomp($time = `date +'%Y %j %H %M'`);
+    @time = split(/ /,$time);    # (Year,DofY,Hour,Mins).
+    return  ($time[0] , $time[1] , 60*$time[2]+$time[3]);
+}
+
+
+sub  CPUTotal  {
+    chomp(my   $total = `awk -F" |=" '{print \$3}' /var/spool/torque/server_priv/nodes`);
+    $total =~ s/\n/+/g;    # CPU cores under PBS control.
+    return  eval($total);
+}
+
+
+sub  CPUAvail  {
+    my   $avail = $_[0];
+    my   (@temp , $offl);
+    chomp(@temp = `pbsnodes -l | awk '{print \$1}'`);
+    foreach $temp (@temp) {
+	chomp($offl = `awk -F" |=" '/$temp/ {print \$3}' /var/spool/torque/server_priv/nodes`);
+	$avail -= $offl;
+    }
+    return  $avail;
+}
+
+
+sub  PBS_Jobs  {
+    my   ($inq,$run) = (0,0);
+    chomp(my   @job = `qstat -1n | awk '/\.admin\./ {print \$7" "\$10}'`);
+    foreach $job (@job) {
+	my   ($x,$y) = split(/ /,$job);
+        $inq += $x    if ("$y" eq "Q");
+        $run += $x    if ("$y" eq "R");
+    }
+    return  ($inq,$run);
+}
+
+
+my   ($year,$dofy,$mins) = &CollTime();
+my   $total = &CPUTotal();
+my   $avail = &CPUAvail($total);
+my   ($queue,$execd) = &PBS_Jobs();
+my   $cores = $avail - $execd;    # Free CPU coes.
+
+
+if     ($avail == 0)
+{
+    print "CRITICAL - No cluster CPU resource available.\n";
+    exit(2);
+}
+elsif ($avail <= 48)
+{
+    print "WARNING - $avail/$total cores are online ($cores cores free). ";
+    print "$execd cores running jobs, queued jobs require $queue cores.\n";
+    exit(1);
+}
+elsif ($cores > 0 && $queue > 0)
+{
+    print "WARNING - $avail/$total cores are online ($cores cores free). ";
+    print "$execd cores running jobs, queued jobs require $queue cores.\n";
+    exit(1);
+}
+elsif ($cores > 0)
+{
+    print "OK - $avail/$total cores are online ($cores cores free). ";
+    print "$execd cores running jobs, queued jobs require $queue cores.\n";
+    exit(0);
+}
+else
+{
+    print "WARNING - $avail/$total cores are online ($cores cores free). ";
+    print "$execd cores running jobs, queued jobs require $queue cores.\n";
+    exit(1);
+}
