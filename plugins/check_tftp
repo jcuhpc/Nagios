@@ -1,0 +1,46 @@
+#!/bin/bash
+# SYNOPSIS
+#	check_tftp -H <host> -f <file>
+#
+# NAGIOS PLUGIN DESCRIPTION
+#	Report on status of a TFTP server.
+#
+# Creation:
+#	10-Jan-2008	Wayne.Mallett@jcu.edu.au
+# Last modified:
+#	
+PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+
+function SyntaxError() {
+    echo ""
+    echo "Usage:"
+    echo "    check_tftp -H <host> -f <file>"
+    echo ""
+    echo "check_tftp comes with absolutely NO WARRANTY."
+    echo ""
+}
+
+if [ $# -ne 4 ] ; then
+    SyntaxError
+    exit $UNKNOWN
+fi
+
+while getopts "H:f:" flag ; do
+    case "$flag" in
+	H) host=$OPTARG;;
+	f) file=$OPTARG;;
+	*) SyntaxError; exit $UNKNOWN;;
+    esac
+done
+
+FILE=`echo "$file" | awk -F/ '{print $NF}'`
+tftp $host -c get $file /tmp/$FILE >/dev/null
+if [ -s /tmp/$FILE ]; then
+    echo "OK:  File transfer completed."
+    rm -f /tmp/$FILE
+    exit 0
+else
+    echo "CRITICAL:  File transfer failed."
+    rm -f /tmp/$FILE
+    exit 2
+fi

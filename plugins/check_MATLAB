@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+# SYNOPSIS
+#	check_MATLAB
+#
+# NAGIOS PLUGIN DESCRIPTION
+#	This script will check the status of a MATLAB license server.
+#
+# Created:      2009/10/21  Wayne.Mallett@jcu.edu.au [1]
+# Changes:	2013/02/06  Use /etc/lmstat link to get information.
+#
+
+chomp(@info = `/etc/lmstat -a`);
+($srvr) = grep(/License server status: /,@info);
+$srvr =~ s/License server status: //g;
+
+($stat) = grep(/: license server/,@info);
+($T,$T,$T,$T,$stat,$T,$T) = split(/ +/,$stat);
+if ($stat ne "UP")
+{
+    print "MLM CRITICAL - MATLAB licensing service is broken.\n";
+    exit(2);
+}
+
+$exit = 0;    $free = "";
+foreach $temp (grep(/^Users of/,@info)) {
+    $temp =~ s/Users of |:  \(Total of| licenses issued;  Total of| licenses in use\)//g;
+    ($feat,$lics,$used) = split(/ /,$temp);
+    $free = "$free$feat(".($lics - $used).") ";
+    $exit = 1    if ($used == $lics);
+}
+
+print "MLM OK - Serving licenses via $srvr. Licenses available: $free\n"         if ($exit == 0);
+print "MLM WARNING - Serving licenses via $srvr. Licenses available: $free\n"    if ($exit == 1);
+exit($exit);
+
